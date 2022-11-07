@@ -3,6 +3,8 @@ using OpenDreamShared.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace DMDisassembler {
@@ -175,6 +177,138 @@ namespace DMDisassembler {
             return result.ToString();
         }
 
+        public void PollOpcodes(ref List<OpcodeCluster> bestList, int depthLength) {
+            MemoryStream stream = new MemoryStream(Bytecode);
+            BinaryReader binaryReader = new BinaryReader(stream);
+            DreamProcOpcode opcode;
+            Queue<DreamProcOpcode> pattern = new Queue<DreamProcOpcode>(new DreamProcOpcode[depthLength]);
+            int depthSoFar = 0;
+            while ((opcode = (DreamProcOpcode)stream.ReadByte()) != (DreamProcOpcode)(-1)) {
+
+                switch (opcode) {
+                    case DreamProcOpcode.FormatString: {
+                        binaryReader.ReadInt32();
+                        binaryReader.ReadInt32(); // This is some metadata FormatString has that we can't really render
+
+                        break;
+                    }
+                    case DreamProcOpcode.PushString: {
+                        binaryReader.ReadInt32();
+
+                        break;
+                    }
+
+                    case DreamProcOpcode.PushResource: {
+                        binaryReader.ReadInt32();
+
+                        break;
+                    }
+
+                    case DreamProcOpcode.Prompt:
+                        binaryReader.ReadInt32();
+                        break;
+
+                    case DreamProcOpcode.PushFloat:
+                        binaryReader.ReadSingle();
+                        break;
+
+                    case DreamProcOpcode.Call:
+                    case DreamProcOpcode.Assign:
+                    case DreamProcOpcode.Append:
+                    case DreamProcOpcode.Remove:
+                    case DreamProcOpcode.Combine:
+                    case DreamProcOpcode.Increment:
+                    case DreamProcOpcode.Decrement:
+                    case DreamProcOpcode.Mask:
+                    case DreamProcOpcode.MultiplyReference:
+                    case DreamProcOpcode.DivideReference:
+                    case DreamProcOpcode.BitXorReference:
+                    case DreamProcOpcode.Enumerate:
+                    case DreamProcOpcode.OutputReference:
+                    case DreamProcOpcode.PushReferenceValue:
+                        ReadReference(binaryReader);
+                        break;
+
+                    case DreamProcOpcode.Input:
+                        ReadReference(binaryReader);
+                        ReadReference(binaryReader);
+                        break;
+
+                    case DreamProcOpcode.CreateList:
+                    case DreamProcOpcode.CreateAssociativeList:
+                    case DreamProcOpcode.PickWeighted:
+                    case DreamProcOpcode.PickUnweighted:
+                        binaryReader.ReadInt32();
+                        break;
+
+                    case DreamProcOpcode.JumpIfNullDereference: {
+                        ReadReference(binaryReader);
+                        binaryReader.ReadInt32();
+                        break;
+                    }
+
+                    case DreamProcOpcode.Initial:
+                    case DreamProcOpcode.IsSaved:
+                    case DreamProcOpcode.PushPath:
+                        binaryReader.ReadInt32();
+                        break;
+
+                    case DreamProcOpcode.Spawn:
+                    case DreamProcOpcode.BooleanOr:
+                    case DreamProcOpcode.BooleanAnd:
+                    case DreamProcOpcode.SwitchCase:
+                    case DreamProcOpcode.SwitchCaseRange:
+                    case DreamProcOpcode.Jump:
+                    case DreamProcOpcode.JumpIfFalse:
+                    case DreamProcOpcode.JumpIfTrue: {
+                        binaryReader.ReadInt32();
+                        break;
+                    }
+
+                    case DreamProcOpcode.PushType:
+                        binaryReader.ReadInt32();
+                        break;
+
+                    case DreamProcOpcode.PushArguments: {
+                        int argCount = binaryReader.ReadInt32();
+                        int namedCount = binaryReader.ReadInt32();
+
+                        for (int i = 0; i < argCount; i++) {
+
+                            DreamProcOpcodeParameterType argType =
+                                (DreamProcOpcodeParameterType)binaryReader.ReadByte();
+                            if (argType == DreamProcOpcodeParameterType.Named) {
+                                string argName = Program.CompiledJson.Strings[binaryReader.ReadInt32()];
+                            }
+                        }
+
+                        break;
+                    }
+                    case DreamProcOpcode.DebugSource:
+                    case DreamProcOpcode.DebugLine:
+                    case (DreamProcOpcode)0:
+                        continue;
+                }
+                pattern.Enqueue(opcode);
+                pattern.Dequeue();
+                depthSoFar += 1;
+                if (depthSoFar < depthLength)
+                    continue;
+                var patternArr = pattern.ToArray();
+                bool foundMyPattern = false;
+                for (int i = 0; i < bestList.Count; i++) {
+                    ref OpcodeCluster cluster = ref CollectionsMarshal.AsSpan(bestList)[i];
+                    if (Enumerable.SequenceEqual(patternArr,cluster.codes)) {
+                        cluster.pollCount += 1;
+                        foundMyPattern = true;
+                        break;
+                    }
+                }
+                if(!foundMyPattern) {
+                    bestList.Add(new OpcodeCluster { codes = patternArr, pollCount = 1 });
+                }
+            }
+        }
         private DMReference ReadReference(BinaryReader reader) {
             DMReference.Type refType = (DMReference.Type)reader.ReadByte();
 

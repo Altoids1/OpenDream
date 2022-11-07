@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using OpenDreamShared.Dream;
+using OpenDreamShared.Dream.Procs;
 using OpenDreamShared.Json;
 
 namespace DMDisassembler {
@@ -49,6 +51,7 @@ namespace DMDisassembler {
                     case "list": List(split); break;
                     case "d":
                     case "decompile": Decompile(split); break;
+                    case "find_opcode_clusters": FindOpcodeClusters(split); break;
                     default: Console.WriteLine("Invalid command \"" + command + "\""); break;
                 }
             }
@@ -116,7 +119,14 @@ namespace DMDisassembler {
                     Console.WriteLine(procName);
                 }
             } else if (what == "children") {
-                Console.WriteLine("Unimplemented");
+                foreach(var typeTuple in AllTypes) {
+                    if(typeTuple.Key.IsDescendantOf(_selectedType.Path)) {
+                        Console.WriteLine(typeTuple.Key.PathString);
+                    }
+                }
+            } else {
+                Console.WriteLine("list procs|children");
+                return;
             }
         }
 
@@ -156,6 +166,40 @@ namespace DMDisassembler {
             }
         }
 
+        private static void FindOpcodeClusters(string[] args) {
+            if (args.Length < 2) {
+                Console.WriteLine("find_opcode_clusters [size]");
+                return;
+            }
+            if (!int.TryParse(args[1], out int depth) || depth < 2) {
+                Console.WriteLine("find_opcode_clusters argument must be an integer value greater than one");
+                return;
+            }
+
+            List<OpcodeCluster> best = new List<OpcodeCluster>(4096);
+            int i = 0;
+            foreach(DMProc proc in Procs) {
+                i += 1;
+                if (proc.Bytecode.Length == 0)
+                    continue;
+                try {
+                    proc.PollOpcodes(ref best, depth);
+                } catch(System.IO.EndOfStreamException) {
+
+                } catch(System.ArgumentOutOfRangeException) {
+
+                }
+                best.Sort();
+                if(best.Count > 2048)
+                    best.RemoveRange(2048, best.Count- 2048);
+                if ((i & 8192) == 8192)
+                    Console.WriteLine($"{(float)i / Procs.Count * 100f:n3}%...");
+            }
+            foreach (OpcodeCluster cluster in best) {
+                Console.WriteLine(cluster);
+            }
+        }
+
         private static void LoadAllProcs() {
             Procs = new List<DMProc>(CompiledJson.Procs.Length);
 
@@ -164,6 +208,7 @@ namespace DMDisassembler {
             }
         }
 
+        /// <remarks> Needs to be not be called before LoadAllProcs(). </remarks>
         private static void LoadAllTypes() {
             AllTypes = new Dictionary<DreamPath, DMType>(CompiledJson.Types.Length);
 
@@ -178,6 +223,23 @@ namespace DMDisassembler {
 
                 globalType.Procs.Add(proc.Name, proc);
             }
+        }
+    }
+
+    struct OpcodeCluster : IComparable<OpcodeCluster> {
+        public DreamProcOpcode[] codes;
+        /// <summary>Stores the number of times we've seen this batch of opcodes together, so far.</summary>
+        public int pollCount;
+
+        public int CompareTo(OpcodeCluster other) {
+            return other.pollCount.CompareTo(this.pollCount); // Inverted comparison so that more popular codes are sorted to the front.
+        }
+
+        public override string ToString() {
+            StringBuilder ret = new StringBuilder($"{pollCount}: {{");
+            ret.AppendJoin(',', codes);
+            ret.Append('}');
+            return ret.ToString();
         }
     }
 }
