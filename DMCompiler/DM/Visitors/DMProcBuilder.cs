@@ -137,11 +137,11 @@ namespace DMCompiler.DM.Visitors {
                 case DMASTProcStatementSet statementSet: ProcessStatementSet(statementSet); break;
                 //NOTE: Is there a more generic way of doing this, where Aggregate doesn't need every possible type state specified here?
                 //      please write such generic thing if more than three aggregates show up in this switch.
-                case DMASTAggregate<DMASTProcStatementSet> gregSet: // Hi Greg
+                case DMASTAggregateProc<DMASTProcStatementSet> gregSet: // Hi Greg
                     foreach (var setStatement in gregSet.Statements)
                         ProcessStatementSet(setStatement);
                     break;
-                case DMASTAggregate<DMASTProcStatementVarDeclaration> gregVar:
+                case DMASTAggregateProc<DMASTProcStatementVarDeclaration> gregVar:
                     foreach (var declare in gregVar.Statements)
                         ProcessStatementVarDeclaration(declare);
                     break;

@@ -498,42 +498,67 @@ namespace DMCompiler.Compiler.DM {
     }
 
     /// <summary>
-    /// A kinda-abstract class that represents several statements that were created in unison by one "super-statement" <br/>
-    /// Such as, a var declaration that actually declares several vars at once (which in our parser must become "one" statement, hence this thing)
-    /// </summary>
-    /// <typeparam name="T">The DMASTNode-derived class that this AST node holds.</typeparam>
-    public sealed class DMASTAggregate<T> : DMASTNode where T : DMASTNode {
-        // Gotta be honest? I like this "where" syntax better than C++20 concepts
-        public T[] Statements { get; }
-
-        public DMASTAggregate(Location location, T[] statements) : base(location) {
-            Statements = statements;
-        }
-
-        public override void Visit(DMASTVisitor visitor) {
-            foreach (T statement in Statements)
-                statement.Visit(visitor);
-        }
-    }
-
-    /// <summary>
     /// These are statements which can only reasonably occur at the "top" level - object definitions, proc declarations, etc.
     /// </summary>
     public abstract class DMASTTopStatement : DMASTNode {
         protected DMASTTopStatement(Location location) : base(location) {
         }
+
+        /// <returns>
+        /// Returns true if this statement is either T or an aggregation of T (stored by an <see cref="DMASTAggregateTop{T}"/> instance). False otherwise.
+        /// </returns>
+        /// <remarks> I would love for this to be an abstract method of DMASTNode, but it actually can't be since we must ensure the type constraint on T.</remarks>
+        public bool IsAggregateOr<T>() where T : DMASTTopStatement {
+            return this is T or DMASTAggregateTop<T>;
+        }
     }
 
+    /// <summary>
+    /// These are statements which can only reasonably occur within a proc's implementation - while loops, return statements, etc.
+    /// </summary>
     public abstract class DMASTProcStatement : DMASTNode {
         protected DMASTProcStatement(Location location)
             : base(location) {
         }
 
         /// <returns>
-        /// Returns true if this statement is either T or an aggregation of T (stored by an <see cref="DMASTAggregate{T}"/> instance). False otherwise.
+        /// Returns true if this statement is either T or an aggregation of T (stored by an <see cref="DMASTAggregateProc{T}"/> instance). False otherwise.
         /// </returns>
         public bool IsAggregateOr<T>() where T : DMASTProcStatement {
-            return (this is T or DMASTAggregate<T>);
+            return this is T or DMASTAggregateProc<T>;
+        }
+    }
+
+    /// <summary>
+    /// A kinda-abstract class that represents several statements that were created in unison by one "super-statement" <br/>
+    /// Such as, a var declaration that actually declares several vars at once (which in our parser must become "one" statement, hence this thing)
+    /// </summary>
+    /// <typeparam name="T">The DMASTNode-derived class that this AST node holds.</typeparam>
+    /// <remarks> I wish that these two classes were the same class,
+    /// but after trying twelve different templating patterns, inheritance systems, keywords and shenanigans, I am convinced that it just isn't possible under C#. <br/>
+    /// You can prove me wrong on your own discretion. If you find something that honestly compiles, replace these with that.</remarks>
+    public sealed class DMASTAggregateTop<T> : DMASTTopStatement where T : DMASTTopStatement {
+        public T[] Statements { get; }
+
+        public DMASTAggregateTop(Location location, T[] statements) : base(location) {
+            Statements = statements;
+        }
+        public override void Visit(DMASTVisitor visitor) {
+            foreach (T statement in Statements)
+                statement.Visit(visitor);
+        }
+    }
+
+    /// <inheritdoc cref="DMASTAggregateTop{T}"/>
+    public sealed class DMASTAggregateProc<T> : DMASTProcStatement where T : DMASTProcStatement {
+        public T[] Statements { get; }
+
+        public DMASTAggregateProc(Location location, T[] statements) : base(location) {
+            Statements = statements;
+        }
+        public override void Visit(DMASTVisitor visitor) {
+            foreach (T statement in Statements)
+                statement.Visit(visitor);
         }
     }
 
@@ -776,25 +801,6 @@ namespace DMCompiler.Compiler.DM {
 
         public override void Visit(DMASTVisitor visitor) {
             visitor.VisitProcStatementVarDeclaration(this);
-        }
-    }
-
-    /// <summary>
-    /// A kinda-abstract class that represents several statements that were created in unison by one "super-statement" <br/>
-    /// Such as, a var declaration that actually declares several vars at once (which in our parser must become "one" statement, hence this thing)
-    /// </summary>
-    /// <typeparam name="T">The DMASTProcStatement-derived class that this AST node holds.</typeparam>
-    public sealed class DMASTAggregate<T> : DMASTProcStatement where T : DMASTProcStatement {
-        // Gotta be honest? I like this "where" syntax better than C++20 concepts
-        public T[] Statements { get; }
-
-        public DMASTAggregate(Location location, T[] statements) : base(location) {
-            Statements = statements;
-        }
-
-        public override void Visit(DMASTVisitor visitor) {
-            foreach (T statement in Statements)
-                statement.Visit(visitor);
         }
     }
 

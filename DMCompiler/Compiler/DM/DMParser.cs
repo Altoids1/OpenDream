@@ -716,9 +716,12 @@ namespace DMCompiler.Compiler.DM {
 
                 Whitespace(); // We have to consume whitespace here since "var foo = 1" (for example) is valid DM code.
                 DMASTProcStatementVarDeclaration[]? vars = ProcVarEnd(allowMultiple);
-                if (vars == null) Error("Expected a var declaration");
+                if (vars is null) {
+                    Error("Expected a var declaration");
+                    return null;
+                }
                 if (vars.Length > 1)
-                    return new DMASTAggregate<DMASTProcStatementVarDeclaration>(firstToken.Location, vars);
+                    return new DMASTAggregateProc<DMASTProcStatementVarDeclaration>(firstToken.Location, vars);
                 return vars[0];
 
             } else if (wasSlash) {
@@ -985,7 +988,7 @@ namespace DMCompiler.Compiler.DM {
                 }
 
                 if (sets.Length > 1)
-                    return new DMASTAggregate<DMASTProcStatementSet>(setBlockToken.Location, sets);
+                    return new DMASTAggregateProc<DMASTProcStatementSet>(setBlockToken.Location, sets);
                 return sets[0];
             }
 
