@@ -31,7 +31,7 @@ namespace DMCompiler.DM {
         public bool IsRoot => Path == DreamPath.Root;
 
         // Statements waiting for LateVarDef event to happen
-        public Dictionary<string, List<DMASTStatement>> DanglingStatementsByUndefinedNames = new();
+        public Dictionary<string, List<DMASTTopStatement>> DanglingStatementsByUndefinedNames = new();
         private bool _isSubscribedToVarDef = false;
         private List<DMProc>? _verbs;
 
@@ -53,10 +53,10 @@ namespace DMCompiler.DM {
                 return;
 
             if (DanglingStatementsByUndefinedNames.ContainsKey(varDefined.Name)) {
-                foreach (DMASTStatement statement in DanglingStatementsByUndefinedNames[varDefined.Name].ToList()) {
+                foreach (DMASTTopStatement statement in DanglingStatementsByUndefinedNames[varDefined.Name].ToList()) {
                     if (statement is DMASTObjectVarOverride && !IsSubtypeOf(maybeAncestor.Path)) // Resolves the ambiguous var override
                         continue;
-                    DMObjectBuilder.ProcessStatement(statement);
+                    DMObjectBuilder.ProcessTopStatement(statement);
                     DanglingStatementsByUndefinedNames[varDefined.Name].Remove(statement);
                 }
                 if (DanglingStatementsByUndefinedNames[varDefined.Name].Count == 0)
@@ -69,11 +69,11 @@ namespace DMCompiler.DM {
             }
         }
 
-        public void WaitForLateVarDefinition(string waitForName, DMASTStatement statement) {
+        public void WaitForLateVarDefinition(string waitForName, DMASTTopStatement statement) {
             if (DanglingStatementsByUndefinedNames.ContainsKey(waitForName)) {
                 DanglingStatementsByUndefinedNames[waitForName].Add(statement);
             } else {
-                DanglingStatementsByUndefinedNames[waitForName] = new List<DMASTStatement> { statement };
+                DanglingStatementsByUndefinedNames[waitForName] = new List<DMASTTopStatement> { statement };
             }
 
             if (_isSubscribedToVarDef == false) {

@@ -152,11 +152,11 @@ namespace DMCompiler.Compiler.DM {
 
         public DMASTFile File() {
             var loc = Current().Location;
-            List<DMASTStatement> statements = new();
+            List<DMASTTopStatement> statements = new();
 
             while (Current().Type != TokenType.EndOfFile) {
                 try {
-                    List<DMASTStatement>? blockInner = BlockInner();
+                    List<DMASTTopStatement>? blockInner = BlockInner();
 
                     if (blockInner != null) statements.AddRange(blockInner);
                 } catch (CompileErrorException) { }
@@ -173,14 +173,14 @@ namespace DMCompiler.Compiler.DM {
             return new DMASTFile(loc, new DMASTBlockInner(loc, statements.ToArray()));
         }
 
-        public List<DMASTStatement>? BlockInner() {
-            List<DMASTStatement> statements = new();
+        public List<DMASTTopStatement>? BlockInner() {
+            List<DMASTTopStatement> statements = new();
 
             do {
                 Whitespace();
 
                 try {
-                    DMASTStatement? statement = Statement();
+                    DMASTTopStatement? statement = Statement();
 
                     if (statement != null) {
                         Whitespace();
@@ -197,7 +197,7 @@ namespace DMCompiler.Compiler.DM {
             return statements;
         }
 
-        public DMASTStatement? Statement(bool requireDelimiter = true) {
+        public DMASTTopStatement? Statement(bool requireDelimiter = true) {
             var loc = Current().Location;
             DMASTPath? path = Path();
             if (path is null)
@@ -207,7 +207,7 @@ namespace DMCompiler.Compiler.DM {
             _currentPath = _currentPath.Combine(path.Path);
 
             try {
-                DMASTStatement? statement = null;
+                DMASTTopStatement? statement = null;
 
                 //Proc definition
                 if (Check(TokenType.DM_LeftParenthesis)) {
@@ -469,7 +469,7 @@ namespace DMCompiler.Compiler.DM {
                 Whitespace();
                 Newline();
                 bool isIndented = Check(TokenType.DM_Indent);
-                List<DMASTStatement>? blockInner = BlockInner();
+                List<DMASTTopStatement>? blockInner = BlockInner();
                 if (isIndented) Check(TokenType.DM_Dedent);
                 Newline();
                 Consume(TokenType.DM_RightCurlyBracket, "Expected '}'");
@@ -483,7 +483,7 @@ namespace DMCompiler.Compiler.DM {
         public DMASTBlockInner? IndentedBlock() {
             var loc = Current().Location;
             if (Check(TokenType.DM_Indent)) {
-                List<DMASTStatement>? blockInner = BlockInner();
+                List<DMASTTopStatement>? blockInner = BlockInner();
 
                 if (blockInner != null) {
                     Newline();

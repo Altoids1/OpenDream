@@ -497,8 +497,30 @@ namespace DMCompiler.Compiler.DM {
         public abstract void Visit(DMASTVisitor visitor);
     }
 
-    public abstract class DMASTStatement : DMASTNode {
-        protected DMASTStatement(Location location) : base(location) {
+    /// <summary>
+    /// A kinda-abstract class that represents several statements that were created in unison by one "super-statement" <br/>
+    /// Such as, a var declaration that actually declares several vars at once (which in our parser must become "one" statement, hence this thing)
+    /// </summary>
+    /// <typeparam name="T">The DMASTNode-derived class that this AST node holds.</typeparam>
+    public sealed class DMASTAggregate<T> : DMASTNode where T : DMASTNode {
+        // Gotta be honest? I like this "where" syntax better than C++20 concepts
+        public T[] Statements { get; }
+
+        public DMASTAggregate(Location location, T[] statements) : base(location) {
+            Statements = statements;
+        }
+
+        public override void Visit(DMASTVisitor visitor) {
+            foreach (T statement in Statements)
+                statement.Visit(visitor);
+        }
+    }
+
+    /// <summary>
+    /// These are statements which can only reasonably occur at the "top" level - object definitions, proc declarations, etc.
+    /// </summary>
+    public abstract class DMASTTopStatement : DMASTNode {
+        protected DMASTTopStatement(Location location) : base(location) {
         }
     }
 
@@ -545,9 +567,9 @@ namespace DMCompiler.Compiler.DM {
     }
 
     public sealed class DMASTBlockInner : DMASTNode {
-        public readonly DMASTStatement[] Statements;
+        public readonly DMASTTopStatement[] Statements;
 
-        public DMASTBlockInner(Location location, DMASTStatement[] statements) : base(location) {
+        public DMASTBlockInner(Location location, DMASTTopStatement[] statements) : base(location) {
             Statements = statements;
         }
 
@@ -595,7 +617,7 @@ namespace DMCompiler.Compiler.DM {
         }
     }
 
-    public sealed class DMASTObjectDefinition : DMASTStatement {
+    public sealed class DMASTObjectDefinition : DMASTTopStatement {
         /// <summary> Unlike other Path variables stored by AST nodes, this path is guaranteed to be the real, absolute path of this object definition block. <br/>
         /// That includes any inherited pathing from being tabbed into a different, base definition.
         /// </summary>
@@ -614,7 +636,7 @@ namespace DMCompiler.Compiler.DM {
     }
 
     /// <remarks> Also includes proc overrides; see the <see cref="IsOverride"/> member. Verbs too.</remarks>
-    public sealed class DMASTProcDefinition : DMASTStatement {
+    public sealed class DMASTProcDefinition : DMASTTopStatement {
         public readonly DreamPath ObjectPath;
         public readonly string Name;
         public readonly bool IsOverride;
@@ -661,7 +683,7 @@ namespace DMCompiler.Compiler.DM {
         }
     }
 
-    public sealed class DMASTObjectVarDefinition : DMASTStatement {
+    public sealed class DMASTObjectVarDefinition : DMASTTopStatement {
         /// <summary>The path of the object that we are a property of.</summary>
         public DreamPath ObjectPath => _varDecl.ObjectPath;
 
@@ -695,7 +717,7 @@ namespace DMCompiler.Compiler.DM {
         }
     }
 
-    public sealed class DMASTMultipleObjectVarDefinitions : DMASTStatement {
+    public sealed class DMASTMultipleObjectVarDefinitions : DMASTTopStatement {
         public readonly DMASTObjectVarDefinition[] VarDefinitions;
 
         public DMASTMultipleObjectVarDefinitions(Location location, DMASTObjectVarDefinition[] varDefinitions) :
@@ -708,7 +730,7 @@ namespace DMCompiler.Compiler.DM {
         }
     }
 
-    public sealed class DMASTObjectVarOverride : DMASTStatement {
+    public sealed class DMASTObjectVarOverride : DMASTTopStatement {
         public readonly DreamPath ObjectPath;
         public readonly string VarName;
         public DMASTExpression Value;

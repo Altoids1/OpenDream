@@ -17,7 +17,7 @@ namespace DMCompiler.DM.Visitors {
         }
 
         public void VisitBlockInner(DMASTBlockInner blockInner) {
-            foreach (DMASTStatement statement in blockInner.Statements) {
+            foreach (DMASTTopStatement statement in blockInner.Statements) {
                 statement.Visit(this);
             }
         }

@@ -100,16 +100,16 @@ namespace DMCompiler.DM.Visitors {
         }
 
         private static void ProcessBlockInner(DMASTBlockInner blockInner, DMObject currentObject) {
-            foreach (DMASTStatement statement in blockInner.Statements) {
+            foreach (DMASTTopStatement statement in blockInner.Statements) {
                 try {
-                    ProcessStatement(statement, currentObject);
+                    ProcessTopStatement(statement, currentObject);
                 } catch (CompileErrorException e) {
                     DMCompiler.Emit(e.Error);
                 }
             }
         }
 
-        public static void ProcessStatement(DMASTStatement statement, DMObject currentObject = null) {
+        public static void ProcessTopStatement(DMASTTopStatement statement, DMObject currentObject = null) {
             switch (statement) {
                 case DMASTObjectDefinition objectDefinition: ProcessObjectDefinition(objectDefinition); break;
 
