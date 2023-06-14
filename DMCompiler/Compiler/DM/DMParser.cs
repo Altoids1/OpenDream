@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using DMCompiler.Compiler.DMPreprocessor;
 using OpenDreamShared.Compiler;
@@ -180,13 +181,13 @@ namespace DMCompiler.Compiler.DM {
                 Whitespace();
 
                 try {
-                    DMASTTopStatement? statement = Statement();
+                    DMASTTopStatement? statement = TopStatement();
 
-                    if (statement != null) {
+                    if (statement is not null) {
                         Whitespace();
                         statements.Add(statement);
-                    } else {
-                        if (statements.Count == 0) return null;
+                    } else if (statements.Count == 0) { // This block must have no statements, then. Lets bail.
+                        return null;
                     }
                 } catch (CompileErrorException) {
                     LocateNextStatement();
@@ -197,7 +198,12 @@ namespace DMCompiler.Compiler.DM {
             return statements;
         }
 
-        public DMASTTopStatement? Statement(bool requireDelimiter = true) {
+        /// <summary>
+        /// Attempts to return a <see cref="DMASTTopStatement"/> (or series of statements), which is a var/proc/obj definition underneath the currentPath's path.
+        /// </summary>
+        /// <param name="requireDelimiter">Toggles whether we demand a delimiter. As of writing, only set to false by DMMParser.</param>
+        /// <returns>Either <see langword="null"/>, or some derived instance of DMASTTopStatement.</returns>
+        public DMASTTopStatement? TopStatement(bool requireDelimiter = true) {
             var loc = Current().Location;
             DMASTPath? path = Path();
             if (path is null)
@@ -208,8 +214,7 @@ namespace DMCompiler.Compiler.DM {
 
             try {
                 DMASTTopStatement? statement = null;
-
-                //Proc definition
+                //Proc definition(s)
                 if (Check(TokenType.DM_LeftParenthesis)) {
                     DMCompiler.VerbosePrint($"Parsing proc {_currentPath}()");
                     BracketWhitespace();
@@ -243,14 +248,14 @@ namespace DMCompiler.Compiler.DM {
                             procBlock = new DMASTProcBlockInner(loc, procStatement);
                         }
                     }
-                    if(path.IsOperator) {
-                        List<DMASTProcStatement> procStatements = procBlock.Statements.ToList();
-                        Location tokenLoc = procBlock.Location;
+                    if (path.IsOperator) {
+                        List<DMASTProcStatement> procStatements = procBlock?.Statements.ToList() ?? new List<DMASTProcStatement>();
+                        Location tokenLoc = procBlock?.Location ?? Location.Unknown;
                         //add ". = src" as the first expression in the operator
-                        DMASTProcStatementExpression assignEqSrc = new DMASTProcStatementExpression(tokenLoc, new DMASTAssign(tokenLoc,new DMASTCallableSelf(tokenLoc), new DMASTIdentifier(tokenLoc, "src")));
+                        DMASTProcStatementExpression assignEqSrc = new DMASTProcStatementExpression(tokenLoc, new DMASTAssign(tokenLoc, new DMASTCallableSelf(tokenLoc), new DMASTIdentifier(tokenLoc, "src")));
                         procStatements.Insert(0, assignEqSrc);
 
-                        procBlock = new DMASTProcBlockInner(loc, procStatements.ToArray(), procBlock.SetStatements);
+                        procBlock = new DMASTProcBlockInner(loc, procStatements.ToArray(), procBlock?.SetStatements);
 
                     }
                     statement = new DMASTProcDefinition(loc, _currentPath, parameters.ToArray(), procBlock);
@@ -293,7 +298,10 @@ namespace DMCompiler.Compiler.DM {
                         if (Check(TokenType.DM_Comma)) {
                             Whitespace();
                             DMASTPath? newVarPath = Path();
-                            if (newVarPath == null) Error("Expected a var definition");
+                            if (newVarPath == null) {
+                                Error("Expected a var definition");
+                                break;
+                            }
                             if (newVarPath.Path.Elements.Length > 1) Error("Invalid var name"); //TODO: This is valid DM
 
                             varPath = _currentPath.AddToPath("../" + newVarPath.Path.PathString);
@@ -305,7 +313,7 @@ namespace DMCompiler.Compiler.DM {
                     if (varDefinitions.Count == 1) {
                         statement = varDefinitions[0];
                     } else {
-                        statement = new DMASTMultipleObjectVarDefinitions(loc, varDefinitions.ToArray());
+                        statement = new DMASTAggregateTop<DMASTObjectVarDefinition>(loc, varDefinitions.ToArray());
                     }
                 }
 
@@ -324,8 +332,23 @@ namespace DMCompiler.Compiler.DM {
                     statement = new DMASTObjectDefinition(loc, _currentPath, null);
                 }
 
+                Debug.Assert(statement is not null);
+
+                // If there isn't a delimiter and we need one
+                // (we're peeking instead of consuming because BlockInner(), our usual caller, is the one responsible for taking in the Delimiter)
                 if (requireDelimiter && !PeekDelimiter() && Current().Type != TokenType.DM_Dedent && Current().Type != TokenType.DM_RightCurlyBracket) {
-                    Error("Expected end of object statement");
+                    /* It might be the case that this is actually a "split" tree of definitions, like
+                     * proc
+                     *     foo()
+                     *     bar()
+                     * So lets check for that.
+                     */
+                    DMASTTopStatement? tryStatement = TopStatement();
+                    if(tryStatement is null) {
+                        Error(WarningCode.BadToken, "Expected end of object statement");
+                        return statement;
+                    }
+                    return new DMASTAggregateTop<DMASTTopStatement>(statement.Location, new[] { tryStatement, statement });
                 }
 
                 return statement;

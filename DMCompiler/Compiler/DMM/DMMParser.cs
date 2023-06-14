@@ -63,7 +63,7 @@ namespace DMCompiler.Compiler.DMM {
                     MapObjectJson mapObject = new MapObjectJson(typeId);
 
                     if (Check(TokenType.DM_LeftCurlyBracket)) {
-                        DMASTTopStatement? statement = Statement(requireDelimiter: false);
+                        DMASTTopStatement? statement = TopStatement(requireDelimiter: false);
 
                         while (statement != null) {
                             DMASTObjectVarOverride? varOverride = statement as DMASTObjectVarOverride;
@@ -77,7 +77,7 @@ namespace DMCompiler.Compiler.DMM {
                             }
 
                             if (Check(TokenType.DM_Semicolon)) {
-                                statement = Statement(requireDelimiter: false);
+                                statement = TopStatement(requireDelimiter: false);
                             } else {
                                 statement = null;
                             }

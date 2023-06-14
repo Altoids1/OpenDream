@@ -181,7 +181,7 @@ namespace OpenDreamShared.Dream {
             return new DreamPath(Type, elements.ToArray());
         }
 
-        public DreamPath Combine(DreamPath path) {
+        public DreamPath Combine(in DreamPath path) {
             switch (path.Type) {
                 case PathType.Relative: return new DreamPath(PathString + "/" + path.PathString);
                 case PathType.Absolute: return path;

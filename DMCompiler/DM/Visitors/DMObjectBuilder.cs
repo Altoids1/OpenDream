@@ -70,9 +70,14 @@ namespace DMCompiler.DM.Visitors {
             foreach (var pair in AwaitedProcDefinitions) {
                 if (pair.Value.IsRoot) { // Have to do this since DMObjectTree is what holds global procs, not the root DMObject, interestingly enough
                     if(!DMObjectTree.SeenGlobalProcDefinition.Contains(pair.Key)) { // If we didn't see a definition for it :(
-                        int ID = DMObjectTree.GlobalProcs[pair.Key];
-                        DMProc proc = DMObjectTree.AllProcs[ID];
-                        DMCompiler.Emit(WarningCode.DanglingOverride, proc.Location, $"Definition for global proc {pair.Key} not found");
+                        Location emittedLocation;
+                        if(DMObjectTree.GlobalProcs.TryGetValue(pair.Key,out int ID)) { // Being paranoid here to avoid a crash
+                            DMProc proc = DMObjectTree.AllProcs[ID];
+                            emittedLocation = proc.Location;
+                        } else {
+                            emittedLocation = Location.Unknown;
+                        }
+                        DMCompiler.Emit(WarningCode.DanglingOverride, emittedLocation, $"Definition for global proc {pair.Key} not found");
                     }
                     continue;
                 }
@@ -118,13 +123,14 @@ namespace DMCompiler.DM.Visitors {
                 case DMASTObjectVarDefinition varDefinition: ProcessVarDefinition(varDefinition); break;
                 case DMASTObjectVarOverride varOverride: ProcessVarOverride(varOverride); break;
                 case DMASTProcDefinition procDefinition: ProcessProcDefinition(procDefinition, currentObject); break;
-                case DMASTMultipleObjectVarDefinitions multipleVarDefinitions: {
-                    foreach (DMASTObjectVarDefinition varDefinition in multipleVarDefinitions.VarDefinitions) {
-                        ProcessVarDefinition(varDefinition);
-                    }
-
+                case DMASTAggregateTop<DMASTProcDefinition> gregProcDefinitions:
+                    foreach (DMASTProcDefinition procDefinition in gregProcDefinitions.Statements)
+                        ProcessProcDefinition(procDefinition, currentObject);
                     break;
-                }
+                case DMASTAggregateTop<DMASTObjectVarDefinition> gregVarDefinitions:
+                    foreach (DMASTObjectVarDefinition varDefinition in gregVarDefinitions.Statements)
+                        ProcessVarDefinition(varDefinition);
+                    break;
                 default: throw new CompileAbortException(statement.Location, "Invalid object statement");
             }
         }
@@ -267,17 +273,15 @@ namespace DMCompiler.DM.Visitors {
 
                 proc.IsVerb = procDefinition.IsVerb;
 
-                if (procDefinition.ObjectPath == DreamPath.Root) {
+                if (dmObject.IsRoot) { // Global procs are owned by DMObjectTree, not the root object.
                     if(procDefinition.IsOverride) {
                         DMCompiler.Emit(WarningCode.InvalidOverride, procDefinition.Location, $"Global procs cannot be overridden - '{procDefinition.Name}' override will be ignored");
                         //Continue processing the proc anyhoo, just don't add it.
+                    } else if (!DMObjectTree.SeenGlobalProcDefinition.Add(procName)) { // Add() is equivalent to Dictionary's TryAdd() for some reason
+                        DMCompiler.Emit(WarningCode.DuplicateProcDefinition, procDefinition.Location, $"Global proc {procDefinition.Name} is already defined");
+                        //Again, even though this is likely an error, process the statements anyways.
                     } else {
-                        if (!DMObjectTree.SeenGlobalProcDefinition.Add(procName)) { // Add() is equivalent to Dictionary's TryAdd() for some reason
-                            DMCompiler.Emit(WarningCode.DuplicateProcDefinition, procDefinition.Location, $"Global proc {procDefinition.Name} is already defined");
-                            //Again, even though this is likely an error, process the statements anyways.
-                        } else {
-                            DMObjectTree.AddGlobalProc(proc.Name, proc.Id);
-                        }
+                        DMObjectTree.AddGlobalProc(proc.Name, proc.Id);
                     }
                 } else {
                     dmObject.AddProc(procName, proc);

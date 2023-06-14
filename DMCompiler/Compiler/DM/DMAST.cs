@@ -30,10 +30,6 @@ namespace DMCompiler.Compiler.DM {
             throw new NotImplementedException();
         }
 
-        public void VisitMultipleObjectVarDefinitions(DMASTMultipleObjectVarDefinitions multipleObjectVarDefinitions) {
-            throw new NotImplementedException();
-        }
-
         public void VisitObjectVarOverride(DMASTObjectVarOverride objectVarOverride) {
             throw new NotImplementedException();
         }
@@ -739,19 +735,6 @@ namespace DMCompiler.Compiler.DM {
 
         public override void Visit(DMASTVisitor visitor) {
             visitor.VisitObjectVarDefinition(this);
-        }
-    }
-
-    public sealed class DMASTMultipleObjectVarDefinitions : DMASTTopStatement {
-        public readonly DMASTObjectVarDefinition[] VarDefinitions;
-
-        public DMASTMultipleObjectVarDefinitions(Location location, DMASTObjectVarDefinition[] varDefinitions) :
-            base(location) {
-            VarDefinitions = varDefinitions;
-        }
-
-        public override void Visit(DMASTVisitor visitor) {
-            visitor.VisitMultipleObjectVarDefinitions(this);
         }
     }
 

@@ -26,12 +26,6 @@ namespace DMCompiler.DM.Visitors {
             SimplifyExpression(ref objectVarDefinition.Value);
         }
 
-        public void VisitMultipleObjectVarDefinitions(DMASTMultipleObjectVarDefinitions multipleObjectVarDefinitions) {
-            foreach (DMASTObjectVarDefinition varDefinition in multipleObjectVarDefinitions.VarDefinitions) {
-                varDefinition.Visit(this);
-            }
-        }
-
         public void VisitObjectVarOverride(DMASTObjectVarOverride objectVarOverride) {
             SimplifyExpression(ref objectVarOverride.Value);
         }
