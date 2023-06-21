@@ -50,7 +50,7 @@ namespace DMCompiler.DM {
             return Value != null && IsConst;
         }
 
-        public bool TryAsJsonRepresentation([NotNullWhen(true)] [CanBeNull] out object valueJson) {
+        public bool TryAsJsonRepresentation([NotNullWhen(true)] out object? valueJson) {
             return Value.TryAsJsonRepresentation(out valueJson);
         }
     }

@@ -443,7 +443,7 @@ namespace DMCompiler.DM.Expressions {
         public Or(Location location, DMExpression lhs, DMExpression rhs)
             : base(location, lhs, rhs) { }
 
-        public override bool TryAsConstant([NotNullWhen(true)] [CanBeNull] out Constant constant) {
+        public override bool TryAsConstant([NotNullWhen(true)] out Constant? constant) {
             if (LHS.TryAsConstant(out var lhs) && lhs.IsTruthy()) { // Short-circuiting!!
                 if(lhs.IsTruthy()) {
                     constant = lhs;
@@ -473,7 +473,7 @@ namespace DMCompiler.DM.Expressions {
         public And(Location location, DMExpression lhs, DMExpression rhs)
             : base(location, lhs, rhs) { }
 
-        public override bool TryAsConstant([NotNullWhen(true)] [CanBeNull] out Constant constant) {
+        public override bool TryAsConstant([NotNullWhen(true)] out Constant? constant) {
             if (LHS.TryAsConstant(out var lhs) && !lhs.IsTruthy()) { // Short-circuiting!!
                 if (!lhs.IsTruthy()) {
                     constant = lhs;

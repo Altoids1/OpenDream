@@ -64,18 +64,18 @@ namespace DMCompiler.DM {
         /// Tries to create a Constant Expression from the given AST. Tosses it out if it fails to be const
         /// </summary>
         /// <returns>True if the resulting expression was constant, false if not.</returns>
-        public static bool TryConstant(DMObject dmObject, DMProc proc, DMASTExpression expression, out Expressions.Constant constant) {
+        public static bool TryConstant(DMObject dmObject, DMProc proc, DMASTExpression expression, out Expressions.Constant? constant) {
             var expr = Create(dmObject, proc, expression);
             return expr.TryAsConstant(out constant);
         }
 
         /// <summary> Attempt to convert this expression into a Constant expression. </summary>
-        public virtual bool TryAsConstant([NotNullWhen(true)] out Expressions.Constant constant) {
+        public virtual bool TryAsConstant([NotNullWhen(true)] out Expressions.Constant? constant) {
             constant = null;
             return false;
         }
 
-        public bool TryAsConstantWithLocation(out Expressions.Constant constant, Location loc) {
+        public bool TryAsConstantWithLocation([NotNullWhen(true)] out Expressions.Constant? constant, Location loc) {
             bool ret = TryAsConstant(out constant);
             if(ret) {
                 constant = constant.CopyWithNewLocation(loc);
