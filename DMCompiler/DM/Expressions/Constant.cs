@@ -118,7 +118,7 @@ namespace DMCompiler.DM.Expressions {
                     break;
                 case Expressions.Resource lhsResource:
                     if (rhs is Expressions.Resource rhsResource) {
-                        return Number.BoolToNumber(Location, lhsResource.Value == rhsResource.Value);
+                        return Number.BoolToNumber(Location, lhsResource.FilePath == rhsResource.FilePath);
                     }
                     break;
                 case Expressions.Path lhsPath:
@@ -250,8 +250,8 @@ namespace DMCompiler.DM.Expressions {
     }
 
     // 4.0, -4.0
-    sealed class Number : Constant {
-        public float Value { get; }
+    class Number : Constant {
+        public virtual float Value { get; }
 
         public Number(Location location, int value) : base(location) {
             Value = value;
@@ -496,7 +496,7 @@ namespace DMCompiler.DM.Expressions {
             MatchCasing = MatchCasing.CaseInsensitive
         };
 
-        private readonly string _filePath;
+        public readonly string FilePath;
         private bool _isAmbiguous;
 
         public Resource(Location location, string filePath) : base(location) {
@@ -524,24 +524,24 @@ namespace DMCompiler.DM.Expressions {
             }
 
             if (finalFilePath != null) {
-                _filePath = System.IO.Path.GetRelativePath(outputDir, finalFilePath);
+                FilePath = System.IO.Path.GetRelativePath(outputDir, finalFilePath);
 
                 if (_isAmbiguous) {
                     DMCompiler.Emit(WarningCode.AmbiguousResourcePath, Location,
-                        $"Resource {filePath} has multiple case-insensitive matches, using {_filePath}");
+                        $"Resource {filePath} has multiple case-insensitive matches, using {FilePath}");
                 }
             } else {
                 DMCompiler.Emit(WarningCode.ItemDoesntExist, Location, $"Cannot find file '{filePath}'");
-                _filePath = filePath;
+                FilePath = filePath;
             }
         }
 
         public override void EmitPushValue(DMObject dmObject, DMProc proc) {
-            proc.PushResource(_filePath);
+            proc.PushResource(FilePath);
         }
 
         public override Constant CopyWithNewLocation(Location loc) {
-            return new Resource(loc, Value);
+            return new Resource(loc, FilePath);
         }
 
         public override bool IsTruthy() => true;
@@ -549,7 +549,7 @@ namespace DMCompiler.DM.Expressions {
         public override bool TryAsJsonRepresentation(out object? json) {
             json = new Dictionary<string, object>() {
                 { "type", JsonVariableType.Resource },
-                { "resourcePath", _filePath }
+                { "resourcePath", FilePath }
             };
 
             return true;

@@ -30,7 +30,7 @@ namespace DMCompiler.DM.Expressions {
         }
 
         private readonly DMExpression _expression;
-        private readonly Operation[] _operations;
+        public readonly Operation[] _operations;
 
         public override DreamPath? Path { get; }
         public override DreamPath? NestedPath { get; }

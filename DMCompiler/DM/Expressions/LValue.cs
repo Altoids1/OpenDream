@@ -112,7 +112,7 @@ namespace DMCompiler.DM.Expressions {
 
     // Identifier of field
     sealed class Field : LValue {
-        public DMVariable Variable { get; private set; };
+        public DMVariable Variable { get; private set; }
 
         public Field(Location location, DMVariable variable)
             : base(location, variable.Type) {
@@ -147,7 +147,7 @@ namespace DMCompiler.DM.Expressions {
 
     // Id of global field
     sealed class GlobalField : LValue {
-        int Id { get; }
+        public int Id { get; }
 
         public GlobalField(Location location, DreamPath? path, int id)
             : base(location, path) {
