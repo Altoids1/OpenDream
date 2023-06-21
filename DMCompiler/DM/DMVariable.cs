@@ -1,8 +1,10 @@
-﻿using OpenDreamShared.Dream;
+﻿using System.Diagnostics.CodeAnalysis;
+using JetBrains.Annotations;
+using OpenDreamShared.Dream;
 using OpenDreamShared.Dream.Procs;
 
 namespace DMCompiler.DM {
-    class DMVariable {
+    sealed class DMVariable {
         public DreamPath? Type;
         public string Name;
         public bool IsGlobal;
@@ -48,7 +50,7 @@ namespace DMCompiler.DM {
             return Value != null && IsConst;
         }
 
-        public bool TryAsJsonRepresentation(out object valueJson) {
+        public bool TryAsJsonRepresentation([NotNullWhen(true)] [CanBeNull] out object valueJson) {
             return Value.TryAsJsonRepresentation(out valueJson);
         }
     }
